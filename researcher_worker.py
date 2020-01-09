@@ -1,4 +1,7 @@
 import syft as sy
+from typing import Union
+from typing import List
+from syft.generic.tensor import AbstractTensor
 from syft.workers.websocket_client import WebsocketClientWorker
 import torch
 import asyncio
@@ -12,12 +15,29 @@ TIMEOUT_INTERVAL = 999_999
 # hook = sy.TorchHook(torch)
 
 class ResearcherWorker(WebsocketClientWorker):
+    def __init__(
+        self,
+        hook,
+        host: str,
+        port: int,
+        cookie: str,
+        secure: bool = False,
+        id: Union[int, str] = 0,
+        is_client_worker: bool = False,
+        log_msgs: bool = False,
+        verbose: bool = False,
+        data: List[Union[torch.Tensor, AbstractTensor]] = None,
+    ):
+        self.cookie = cookie
+
+        super().__init__(hook, host, port, secure, id, is_client_worker, log_msgs, verbose, data)
+
     @property
     def url(self):
         return f"wss://{self.host}:{self.port}/research" if self.secure else f"ws://{self.host}:{self.port}/research"
 
     def connect(self):
-        args = {"max_size": None, "timeout": TIMEOUT_INTERVAL, "url": self.url, "cookie": f"320984,{self.id}"}
+        args = {"max_size": None, "timeout": TIMEOUT_INTERVAL, "url": self.url, "cookie": f"{self.cookie},{self.id}"}
 
         if self.secure:
             args["sslopt"] = {"cert_reqs": ssl.CERT_NONE}

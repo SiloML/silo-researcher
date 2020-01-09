@@ -13,7 +13,7 @@ from collections import defaultdict
 from researcher_worker import ResearcherWorker
 from researcher_dataloader import ResearcherDataset
 
-PROXY_URL = "127.0.0.1"
+PROXY_URL = "54.215.231.137"
 PROXY_PORT = 8888
 VERBOSE = True
 
@@ -40,7 +40,7 @@ hook = sy.TorchHook(torch)
 
 # print(researcher.search("data"))
 
-dataset = ResearcherDataset(['santa', 'grinch'] if len(sys.argv) == 1 else sys.argv[1:])
+dataset = ResearcherDataset(sys.argv[-1])
 dataloader = sy.FederatedDataLoader(dataset, shuffle = True, batch_size = 128)
 
 # model = nn.Linear(2,1)
