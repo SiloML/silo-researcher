@@ -8,6 +8,7 @@ from torch import optim
 import torch.nn.functional as F
 from torchvision import datasets, transforms
 import sys
+from collections import defaultdict
 
 from researcher_worker import ResearcherWorker
 from researcher_dataloader import ResearcherDataset
@@ -40,7 +41,7 @@ hook = sy.TorchHook(torch)
 # print(researcher.search("data"))
 
 dataset = ResearcherDataset(['santa', 'grinch'] if len(sys.argv) == 1 else sys.argv[1:])
-dataloader = sy.FederatedDataLoader(dataset, shuffle = True)
+dataloader = sy.FederatedDataLoader(dataset, shuffle = True, batch_size = 128)
 
 # model = nn.Linear(2,1)
 
@@ -69,51 +70,91 @@ class AddingModel(nn.Module):
 
         return out
 
-model = AddingModel()
+class Net(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5, 1)
+        self.conv2 = nn.Conv2d(20, 50, 5, 1)
+        self.fc1 = nn.Linear(4*4*50, 500)
+        self.fc2 = nn.Linear(500, 10)
+
+    def forward(self, x):
+        # print("got here")
+        x = x.unsqueeze(1).float()
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, 2, 2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, 2, 2)
+        x = x.view(-1, 4*4*50)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        return F.log_softmax(x, dim=1)
+
+model = Net()
 # model = torch.jit.script(AddingModel())
 # model = torch.jit.trace(model, torch.Tensor([1, 2, 3]))
 # model = torch.jit.trace(nn.Linear(3, 1), torch.Tensor([1.0, 2.0, 3.0]))
-loss_fn = nn.MSELoss()
+loss_fn = F.nll_loss
 
 print("STARTING TO TRAIN")
 
 def train():
     # Training Logic
-    opt = optim.Adam(params=model.parameters())
+    # opt = optim.SGD(params=model.parameters(), lr = .01)
+    opt_dict = defaultdict(lambda: optim.Adam(params = model.parameters()))
+
     for i in range(20):
 
+        total_loss = 0
+        total_acc = 0
+        n_iters = 0
+        n_samples = 0
+
         for data, target in dataloader:
+            # opt = optim.Adam(params = model.parameters())
             print(data.location)
-            print("sending the model")
+            # print("sending the model")
             model.send(data.location)
             print("sent the model")
-            print("zeroed the gradients")
+            print(data.location)
             output = model(data)
+            print(output.location)
+            # print(data.copy().get())
+            # print(output.copy().get())
+            # print(target.copy().get())
             print("got the output")
-            loss = ((output - target.squeeze())**2).sum()
-            # loss = -loss_fn(output, target.squeeze())
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-            model.get()
-
-            # # 1) erase previous gradients (if they exist)
+            # output.send(data.location)
+            # target.send(data.location)
+            # loss = ((output - target.squeeze())**2).sum()
+            # print(loss)
+            # model.get()
+            loss = loss_fn(output, target.squeeze())
+            values, classes = output.max(1)
+            acc = (target == classes).sum() / float(data.shape[0])
+            print(loss.location)
+            print(target.location)
             # opt.zero_grad()
-
-            # # 2) make a prediction
-            # pred = model(data)
-
-            # # 3) calculate how much we missed
-            # loss = ((pred - target)**2).sum()
-
-            # # 4) figure out which weights caused us to miss
-            # loss.backward()
-
-            # # 5) change those weights
+            opt_dict[data.location].zero_grad()
+            print("zeroed the gradients")
+            loss.backward()
+            print("backpropogated")
             # opt.step()
+            opt_dict[data.location].step()
+            print("stepped optimizer")
+            model.get()
+            print("retrieved model")
 
-            # # 6) print our progress
-        print(loss.get())
+            total_loss += loss.get()
+            total_acc += acc.get()
+            n_iters += 1
+            n_samples += data.shape[0]
+            print(n_samples)
+            # data.location.remove_all_but_data() # do this because garbage collection has a problem
+            # data.location._print_objects_on_remote()
+
+        print(total_loss / n_iters)
+        print(total_acc / n_iters)
 
 train()
 

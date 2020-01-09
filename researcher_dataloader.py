@@ -37,9 +37,9 @@ class ResearcherDataset:
         self.workers = []
         for worker in self.worker_handles:
             print(worker)
-            print(worker.test_hello_world())
-            print(worker._objects)
-            help(worker.list_objects_remote())
+            # print(worker.test_hello_world())
+            # print(worker._objects)
+            # help(worker.list_objects_remote())
             # print(worker._remote_objects)
             this_dataset = worker.search(self.dataset_key)
             this_targets = worker.search(self.target_key)
@@ -71,7 +71,7 @@ class ResearcherDataset:
 
     def __repr__(self):
 
-        fmt_str = "FederatedDataset\n"
+        fmt_str = "ResearcherDataset\n"
         fmt_str += "    Distributed accross: {}\n".format(", ".join(str(x) for x in self.workers))
         fmt_str += "    Number of datapoints: {}\n".format(self.__len__())
         return fmt_str

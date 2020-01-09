@@ -69,6 +69,12 @@ class ResearcherWorker(WebsocketClientWorker):
     def test_hello_world(self):
         return self._send_msg_and_deserialize("test_hello_world")
 
+    def _print_objects_on_remote(self):
+        return self._send_msg_and_deserialize("_print_objects")
+
+    def remove_all_but_data(self):
+        return self._send_msg_and_deserialize("remove_all_but_data")
+
     # def _send_msg_and_deserialize(self, command_name: str, *args, **kwargs):
     #     print("WE'RE DOING A THING")
     #     message = self.create_message_execute_command(
